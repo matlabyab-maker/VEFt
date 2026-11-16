@@ -4360,8 +4360,10 @@ class MainActivity : Activity() {
         val availableWidth = ((parent?.width ?: container.width) -
             (parent?.paddingLeft ?: container.paddingLeft) -
             (parent?.paddingRight ?: container.paddingRight)).coerceAtLeast(1)
-        // Keep a compact player viewport while preserving the source aspect ratio.
-        val maxHeight = (160f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        // Use the full height of the player row instead of the old fixed 160dp cap.
+        // This enlarges the real video viewport (not merely the surrounding black row)
+        // while preserving the source aspect ratio and never stretching the picture.
+        val maxHeight = (parent?.height ?: dp(160)).coerceAtLeast(1)
         val aspect = videoWidth.toFloat() / videoHeight.toFloat()
         var viewportWidth = availableWidth
         var viewportHeight = (viewportWidth / aspect).toInt().coerceAtLeast(1)
@@ -4373,7 +4375,8 @@ class MainActivity : Activity() {
         containerParams.width = viewportWidth
         containerParams.height = viewportHeight
         if (containerParams is LinearLayout.LayoutParams) {
-            containerParams.gravity = Gravity.CENTER_HORIZONTAL
+            // Center the actual video frame vertically in the resizable player row.
+            containerParams.gravity = Gravity.CENTER
         }
         container.layoutParams = containerParams
 

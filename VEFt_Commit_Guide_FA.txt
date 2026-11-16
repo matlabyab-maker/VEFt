@@ -33,7 +33,7 @@
       branches: ["**"]
     workflow_dispatch:
 - بنابراین اجرا به main یا master محدود نیست.
-- خروجی APK در Artifact با نام VEFt-0.2.182-ARM32-Dynamic-Storyboard-debug-apk قرار می‌گیرد.
+- خروجی APK در Artifact با نام VEFt-0.2.183-ARM32-Dynamic-Storyboard-debug-apk قرار می‌گیرد.
 
 ۵) اگر Actions اجرا نشد
 - بررسی کنید فایل .github/workflows/android.yml همراه Commit ارسال شده باشد.

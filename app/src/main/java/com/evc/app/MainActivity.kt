@@ -1779,7 +1779,15 @@ class MainActivity : Activity() {
                     R.id.targetSizeMb -> dp(30)
                     else -> dp(52)
                 }
-                group.addView(item, LinearLayout.LayoutParams(dp(94), itemHeight))
+                val compactWidth = when (item.id) {
+                    R.id.openButton, R.id.outputChangesButton -> dp(90)
+                    R.id.outputTargetSizeCheck -> dp(76)
+                    R.id.outputTargetSizeLabel -> dp(68)
+                    R.id.targetSizeMb -> dp(70)
+                    R.id.manualOutputNameCheck -> dp(78)
+                    else -> dp(86)
+                }
+                group.addView(item, LinearLayout.LayoutParams(compactWidth, itemHeight))
             }
             actionContainer.addView(group)
             if (groupIndex < 4) {
@@ -1814,20 +1822,27 @@ class MainActivity : Activity() {
                     when (child) {
                         is CheckBox -> {
                             val cp = lp as? LinearLayout.LayoutParams ?: continue
-                            cp.width = if (horizontal) dp(94) else ViewGroup.LayoutParams.MATCH_PARENT
+                            cp.width = if (horizontal) when (child.id) {
+                                R.id.outputTargetSizeCheck -> dp(76)
+                                R.id.manualOutputNameCheck -> dp(78)
+                                else -> dp(86)
+                            } else ViewGroup.LayoutParams.MATCH_PARENT
                             cp.height = dp(52)
                             cp.setMargins(if (horizontal) dp(1) else 0, 0, if (horizontal) dp(1) else 0, 0)
                             child.layoutParams = cp
-                            child.textSize = if (horizontal) 10f else 9f
+                            child.textSize = if (horizontal) 9.5f else 9f
                             child.gravity = Gravity.CENTER
                         }
                         is Button -> {
                             val bp = lp as? LinearLayout.LayoutParams ?: continue
-                            bp.width = if (horizontal) dp(94) else ViewGroup.LayoutParams.MATCH_PARENT
+                            bp.width = if (horizontal) when (child.id) {
+                                R.id.openButton, R.id.outputChangesButton -> dp(90)
+                                else -> dp(86)
+                            } else ViewGroup.LayoutParams.MATCH_PARENT
                             bp.height = dp(52)
                             bp.setMargins(if (horizontal) dp(1) else 0, 0, if (horizontal) dp(1) else 0, 0)
                             child.layoutParams = bp
-                            child.textSize = if (horizontal) 10f else 9f
+                            child.textSize = if (horizontal) 9.5f else 9f
                         }
                         is TextView -> {
                             if (child.contentDescription == "toolbar-group-divider") {

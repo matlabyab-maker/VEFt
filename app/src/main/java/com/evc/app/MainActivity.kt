@@ -135,7 +135,7 @@ class MainActivity : Activity() {
     private var selectedCoverFrameIndex: Int? = null
     @Volatile private var storyboardPriorityIndex: Int = 0
     private var allViewMode = false
-    private var storyboardNavigationMode = 0
+    private var storyboardNavigationMode = 1
     private var userStoryboardColumns: Int? = null
     // Exact timestamps for storyboard cells populated by image-based scene search.
     private val imageSearchFrameTimes = mutableMapOf<Int, Long>()
@@ -491,6 +491,7 @@ class MainActivity : Activity() {
             }
             false
         }
+        findViewById<Button>(R.id.storyboardTopButton).text = "Between"
         findViewById<Button>(R.id.storyboardTopButton).setOnClickListener { button ->
             val navigationButton = button as Button
             when (storyboardNavigationMode) {
@@ -1739,9 +1740,10 @@ class MainActivity : Activity() {
         actionContainer.removeAllViews()
         val groups = listOf(
             listOf(R.id.openButton, R.id.outputChangesButton, R.id.outputTargetSizeCheck, R.id.outputTargetSizeLabel, R.id.targetSizeMb, R.id.manualOutputNameCheck),
-            listOf(R.id.mergeButton, R.id.globalDeleteButton, R.id.joinAfterButton, R.id.outputFormatButton),
-            listOf(R.id.trackPanelButton, R.id.overlayVideoPanelButton),
-            listOf(R.id.imageSceneSearchButton, R.id.textPlacementButton),
+            listOf(R.id.mergeButton, R.id.joinAfterButton, R.id.overlayVideoPanelButton, R.id.textPlacementButton),
+            listOf(R.id.globalDeleteButton, R.id.outputFormatButton),
+            listOf(R.id.trackPanelButton),
+            listOf(R.id.imageSceneSearchButton),
             listOf(R.id.colorPanelButton, R.id.vectorButton, R.id.cropButton, R.id.advancedEditButton)
         )
         val groupColors = mapOf(
@@ -1790,14 +1792,14 @@ class MainActivity : Activity() {
                 group.addView(item, LinearLayout.LayoutParams(compactWidth, itemHeight))
             }
             actionContainer.addView(group)
-            if (groupIndex < 4) {
+            if (groupIndex < groups.lastIndex) {
                 actionContainer.addView(TextView(this).apply {
                     text = "┆┆"
                     setTextColor(Color.rgb(255, 152, 0))
                     textSize = 18f
                     gravity = Gravity.CENTER
                     contentDescription = "toolbar-group-divider"
-                }, LinearLayout.LayoutParams(dp(12), ViewGroup.LayoutParams.MATCH_PARENT))
+                }, LinearLayout.LayoutParams(dp(4), ViewGroup.LayoutParams.MATCH_PARENT))
             }
         }
         val toolbarButtons = toolbarItems.filter { it is Button && it !is CheckBox }.map { it as Button }
@@ -1828,7 +1830,7 @@ class MainActivity : Activity() {
                                 else -> dp(86)
                             } else ViewGroup.LayoutParams.MATCH_PARENT
                             cp.height = dp(52)
-                            cp.setMargins(if (horizontal) dp(1) else 0, 0, if (horizontal) dp(1) else 0, 0)
+                            cp.setMargins(0, 0, 0, 0)
                             child.layoutParams = cp
                             child.textSize = if (horizontal) 9.5f else 9f
                             child.gravity = Gravity.CENTER
@@ -1840,7 +1842,7 @@ class MainActivity : Activity() {
                                 else -> dp(86)
                             } else ViewGroup.LayoutParams.MATCH_PARENT
                             bp.height = dp(52)
-                            bp.setMargins(if (horizontal) dp(1) else 0, 0, if (horizontal) dp(1) else 0, 0)
+                            bp.setMargins(0, 0, 0, 0)
                             child.layoutParams = bp
                             child.textSize = if (horizontal) 9.5f else 9f
                         }

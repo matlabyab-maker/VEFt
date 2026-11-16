@@ -3,7 +3,7 @@
 - **Repository / Gradle root:** `VEFt`
 - **Android app label:** `EVeditor`
 - **Application ID / namespace:** `com.evc.app` (preserved to retain the existing installed-app identity)
-- **Version:** `0.2.183` (`versionCode 383`)
+- **Version:** `0.2.184` (`versionCode 384`)
 - **Minimum Android:** API 24
 - **Target / Compile SDK:** 35
 - **Target ABI:** `armeabi-v7a` (32-bit ARM)
@@ -15,7 +15,7 @@ The workflow is `.github/workflows/android.yml`.
 - Push trigger watches **all branches** using `branches: ["**"]`.
 - Pull requests and manual runs are enabled (`workflow_dispatch`).
 - Uses JDK 17, Android SDK 35 / Build Tools 35.0.0, and Gradle 8.9.
-- Builds the debug APK and uploads `VEFt-0.2.183-ARM32-Dynamic-Storyboard-debug-apk`.
+- Builds the debug APK and uploads `VEFt-0.2.184-ARM32-Dynamic-Storyboard-debug-apk`.
 
 The workflow's all-branches trigger is intentionally retained to avoid the earlier issue where a Commit/Push on a branch other than `main` or `master` did not start a build.
 

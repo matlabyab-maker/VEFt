@@ -1,0 +1,47 @@
+راهنمای ساخت مخزن تازه VEFt با GitHub و MGit
+
+این بسته، پروژه ویرایش ویدیو را با نام مخزن و ریشه Gradle برابر VEFt آماده می‌کند.
+شناسه اندروید برنامه عمداً حفظ شده است: com.evc.app
+
+۱) آماده‌سازی فایل‌ها
+- فایل VEFt.zip را استخراج کنید.
+- پوشه VEFt را به‌عنوان ریشه پروژه انتخاب کنید.
+- فایل‌های settings.gradle.kts و build.gradle.kts و پوشه‌های app و .github باید مستقیماً داخل پوشه VEFt باشند.
+- پوشه .git در بسته وجود ندارد؛ مخزن محلی باید تازه در MGit ساخته شود.
+- فایل‌های مخفی، به‌ویژه پوشه .github، را از Stage جا نیندازید.
+
+۲) ساخت مخزن در GitHub
+- در GitHub یک Repository خالی با نام دقیق VEFt بسازید.
+- هنگام ساخت مخزن، README یا فایل‌های اولیه را به‌صورت خودکار اضافه نکنید.
+- آدرس HTTPS مخزن تازه VEFt را پس از ساخت در MGit به‌عنوان Remote اضافه کنید.
+
+۳) اولین Commit و Push در MGit
+- پوشه VEFt را به‌عنوان مخزن محلی باز/ایجاد کنید.
+- همه فایل‌ها، از جمله فایل‌ها و پوشه‌های مخفی مانند .github، را Stage کنید.
+- اولین Commit را با پیام Initial VEFt project ثبت کنید.
+- شاخه محلی را به مخزن GitHub تازه Push کنید.
+
+۴) بررسی GitHub Actions
+- پس از Push، زبانه Actions را باز کنید.
+- Workflow با نام VEFt Android Build باید اجرا شود.
+- فایل workflow در مسیر دقیق .github/workflows/android.yml قرار دارد.
+- تریگر Push به همه شاخه‌ها فعال است:
+  on:
+    push:
+      branches: ["**"]
+    pull_request:
+      branches: ["**"]
+    workflow_dispatch:
+- بنابراین اجرا به main یا master محدود نیست.
+- خروجی APK در Artifact با نام VEFt-0.2.182-ARM32-Dynamic-Storyboard-debug-apk قرار می‌گیرد.
+
+۵) اگر Actions اجرا نشد
+- بررسی کنید فایل .github/workflows/android.yml همراه Commit ارسال شده باشد.
+- در MGit نام شاخه‌ای را که Push کرده‌اید بررسی کنید.
+- مطمئن شوید Remote به مخزن تازه VEFt اشاره می‌کند.
+- در GitHub، بخش Actions و وضعیت فعال بودن Workflow را بررسی کنید.
+- اگر Workflow اجرا شد ولی Build شکست خورد، متن خطای همان اجرای Actions را برای بررسی ارسال کنید.
+
+نکته:
+در این بسته تنظیمات YAML برای اجرای Push روی همه شاخه‌ها حفظ شده است.
+هیچ Remote یا تاریخچه Git قبلی داخل ZIP قرار ندارد.

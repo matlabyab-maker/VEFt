@@ -450,6 +450,26 @@ class MainActivity : Activity() {
             manualNameField.visibility = if (checked) View.VISIBLE else View.GONE
             if (checked) manualNameField.requestFocus()
         }
+        val tagCheck = findViewById<CheckBox>(R.id.tagMetadataCheck)
+        val tagInput = findViewById<EditText>(R.id.tagMetadataInput)
+        val tagPrefs = getSharedPreferences("veft_video_tags", MODE_PRIVATE)
+        tagInput.setText(tagPrefs.getString("current_tag", ""))
+        tagInput.visibility = View.GONE
+        tagCheck.setOnCheckedChangeListener { _, checked ->
+            tagInput.visibility = if (checked) View.VISIBLE else View.GONE
+            if (checked) tagInput.requestFocus()
+            tagPrefs.edit().putBoolean("tag_enabled", checked).apply()
+        }
+        tagInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                tagPrefs.edit().putString("current_tag", s?.toString().orEmpty()).apply()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        tagCheck.isChecked = tagPrefs.getBoolean("tag_enabled", false)
+        findViewById<Button>(R.id.videoInfoButton).setOnClickListener { showVideoInfoDialog() }
+        installPlayerResizeHandle()
 
         playerColorPreview = findViewById(R.id.playerColorPreview)
         statusText = findViewById(R.id.statusText)
@@ -1739,15 +1759,15 @@ class MainActivity : Activity() {
         val itemById = toolbarItems.associateBy { it.id }
         actionContainer.removeAllViews()
         val groups = listOf(
-            listOf(R.id.openButton, R.id.outputChangesButton, R.id.outputTargetSizeCheck, R.id.outputTargetSizeLabel, R.id.targetSizeMb, R.id.manualOutputNameCheck),
-            listOf(R.id.mergeButton, R.id.joinAfterButton, R.id.overlayVideoPanelButton, R.id.textPlacementButton),
+            listOf(R.id.openButton, R.id.videoInfoButton, R.id.outputChangesButton, R.id.outputTargetSizeCheck, R.id.outputTargetSizeLabel, R.id.targetSizeMb, R.id.manualOutputNameCheck, R.id.tagMetadataCheck),
+            listOf(R.id.mergeButton, R.id.joinAfterButton, R.id.overlayVideoPanelButton, R.id.textPlacementButton, R.id.trackPanelButton),
             listOf(R.id.globalDeleteButton, R.id.outputFormatButton),
-            listOf(R.id.trackPanelButton),
             listOf(R.id.imageSceneSearchButton),
             listOf(R.id.colorPanelButton, R.id.vectorButton, R.id.cropButton, R.id.advancedEditButton)
         )
         val groupColors = mapOf(
             R.id.openButton to Color.rgb(144, 202, 249),
+            R.id.videoInfoButton to Color.rgb(128, 203, 196),
             R.id.outputChangesButton to Color.rgb(100, 181, 246),
             R.id.mergeButton to Color.rgb(255, 224, 130),
             R.id.globalDeleteButton to Color.rgb(198, 40, 40),
@@ -1783,7 +1803,9 @@ class MainActivity : Activity() {
                 }
                 val compactWidth = when (item.id) {
                     R.id.openButton, R.id.outputChangesButton -> dp(90)
+                    R.id.videoInfoButton -> dp(78)
                     R.id.outputTargetSizeCheck -> dp(76)
+                    R.id.tagMetadataCheck -> dp(54)
                     R.id.outputTargetSizeLabel -> dp(68)
                     R.id.targetSizeMb -> dp(70)
                     R.id.manualOutputNameCheck -> dp(78)
@@ -1826,6 +1848,7 @@ class MainActivity : Activity() {
                             val cp = lp as? LinearLayout.LayoutParams ?: continue
                             cp.width = if (horizontal) when (child.id) {
                                 R.id.outputTargetSizeCheck -> dp(76)
+                                R.id.tagMetadataCheck -> dp(54)
                                 R.id.manualOutputNameCheck -> dp(78)
                                 else -> dp(86)
                             } else ViewGroup.LayoutParams.MATCH_PARENT
@@ -1839,6 +1862,7 @@ class MainActivity : Activity() {
                             val bp = lp as? LinearLayout.LayoutParams ?: continue
                             bp.width = if (horizontal) when (child.id) {
                                 R.id.openButton, R.id.outputChangesButton -> dp(90)
+                                R.id.videoInfoButton -> dp(78)
                                 else -> dp(86)
                             } else ViewGroup.LayoutParams.MATCH_PARENT
                             bp.height = dp(52)
@@ -4173,6 +4197,152 @@ class MainActivity : Activity() {
                 button.isEnabled = true
                 statusText.text = if (errors.isEmpty()) "$saved قطعه به‌صورت فایل‌های جداگانه در Movies/EVC ذخیره شد؛ بدون رمزگذاری مجدد" else "$saved قطعه ذخیره شد؛ ${errors.size} قطعه ناموفق بود: ${errors.first()}"
                 Toast.makeText(this, statusText.text, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+
+    private fun installPlayerResizeHandle() {
+        val handle = findViewById<View>(R.id.playerResizeHandle)
+        val playerRow = findViewById<View>(R.id.playerActionRow)
+        var startY = 0f
+        var startHeight = 0
+        handle.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startY = event.rawY
+                    startHeight = playerRow.layoutParams.height
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val delta = (event.rawY - startY).toInt()
+                    val maxHeight = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+                    val newHeight = (startHeight + delta).coerceIn(dp(170), maxHeight.coerceAtLeast(dp(240)))
+                    if (newHeight != playerRow.layoutParams.height) {
+                        playerRow.layoutParams = playerRow.layoutParams.apply { height = newHeight }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    handle.performClick()
+                    true
+                }
+                else -> true
+            }
+        }
+    }
+
+    private fun showVideoInfoDialog() {
+        val uri = selectedUri
+        if (uri == null) {
+            android.widget.Toast.makeText(this, "ابتدا یک ویدیو انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        statusText.text = "در حال خواندن اطلاعات ویدیو…"
+        worker.execute {
+            val lines = mutableListOf<String>()
+            var retriever: MediaMetadataRetriever? = null
+            var extractor: MediaExtractor? = null
+            try {
+                retriever = MediaMetadataRetriever().apply { setDataSource(this@MainActivity, uri) }
+                fun meta(key: Int): String = retriever?.extractMetadata(key)?.takeIf { it.isNotBlank() } ?: "نامشخص"
+                var fileName = uri.lastPathSegment ?: "نامشخص"
+                var fileSize = -1L
+                try {
+                    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+                        if (c.moveToFirst()) {
+                            val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            val sizeIndex = c.getColumnIndex(OpenableColumns.SIZE)
+                            if (nameIndex >= 0) fileName = c.getString(nameIndex) ?: fileName
+                            if (sizeIndex >= 0 && !c.isNull(sizeIndex)) fileSize = c.getLong(sizeIndex)
+                        }
+                    }
+                } catch (_: Exception) {}
+                if (fileSize < 0) {
+                    try {
+                        contentResolver.openAssetFileDescriptor(uri, "r")?.use { fileSize = it.length }
+                    } catch (_: Exception) {}
+                }
+                val width = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                val height = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                val durationMs = meta(MediaMetadataRetriever.METADATA_KEY_DURATION).toLongOrNull()
+                val durationText = durationMs?.let {
+                    val sec = it / 1000
+                    "%02d:%02d:%02d".format(sec / 3600, (sec % 3600) / 60, sec % 60)
+                } ?: "نامشخص"
+                lines += "نام فایل: $fileName"
+                lines += "ابعاد: $width × $height"
+                lines += "فرمت ظرف: ${meta(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)}"
+                lines += "حجم: ${if (fileSize >= 0) "%.2f MB".format(fileSize / 1048576.0) else "نامشخص"}"
+                lines += "مدت: $durationText"
+                lines += "Bitrate: ${meta(MediaMetadataRetriever.METADATA_KEY_BITRATE)}"
+                val tagKeys = listOf(
+                    "عنوان" to MediaMetadataRetriever.METADATA_KEY_TITLE,
+                    "هنرمند" to MediaMetadataRetriever.METADATA_KEY_ARTIST,
+                    "آلبوم" to MediaMetadataRetriever.METADATA_KEY_ALBUM,
+                    "تاریخ" to MediaMetadataRetriever.METADATA_KEY_DATE,
+                    "سبک" to MediaMetadataRetriever.METADATA_KEY_GENRE,
+                    "سازنده" to MediaMetadataRetriever.METADATA_KEY_AUTHOR,
+                    "نویسنده" to MediaMetadataRetriever.METADATA_KEY_WRITER,
+                    "آهنگساز" to MediaMetadataRetriever.METADATA_KEY_COMPOSER
+                )
+                lines += ""
+                lines += "Tagهای موجود:"
+                var hasTag = false
+                for ((label, key) in tagKeys) {
+                    val value = retriever?.extractMetadata(key)?.takeIf { it.isNotBlank() }
+                    if (value != null) {
+                        lines += "$label: $value"
+                        hasTag = true
+                    }
+                }
+                val appTag = getSharedPreferences("veft_video_tags", MODE_PRIVATE).getString("current_tag", "").orEmpty()
+                if (appTag.isNotBlank()) {
+                    lines += "Tag ثبت‌شده در VEFt: $appTag"
+                    hasTag = true
+                }
+                if (!hasTag) lines += "Tag متنی ثبت‌شده‌ای پیدا نشد"
+                extractor = MediaExtractor().apply { setDataSource(this@MainActivity, uri, null) }
+                val audioTracks = mutableListOf<String>()
+                val subtitleTracks = mutableListOf<String>()
+                val videoTracks = mutableListOf<String>()
+                for (i in 0 until extractor.trackCount) {
+                    val format = extractor.getTrackFormat(i)
+                    val mime = format.getString("mime") ?: "نوع ناشناخته"
+                    val title = try { format.getString("title") } catch (_: Exception) { null }
+                    val language = try { format.getString("language") } catch (_: Exception) { null }
+                    val trackName = title?.takeIf { it.isNotBlank() } ?: language?.takeIf { it.isNotBlank() } ?: "بدون نام"
+                    val details = buildString {
+                        append("#${i + 1} $trackName — $mime")
+                        if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) append("، کانال: ${format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)}")
+                        if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) append("، نرخ نمونه: ${format.getInteger(MediaFormat.KEY_SAMPLE_RATE)} Hz")
+                    }
+                    when {
+                        mime.startsWith("audio/") -> audioTracks += details
+                        mime.startsWith("text/") || mime.contains("subtitle") || mime.contains("subpicture") -> subtitleTracks += details
+                        mime.startsWith("video/") -> videoTracks += details
+                    }
+                }
+                lines += ""
+                lines += "کدک تصویر: ${videoTracks.joinToString(" | ").ifBlank { "نامشخص" }}"
+                lines += "تعداد صدا: ${audioTracks.size}"
+                lines += audioTracks.ifEmpty { listOf("ترک صوتی شناسایی نشد") }
+                lines += "تعداد زیرنویس: ${subtitleTracks.size}"
+                lines += subtitleTracks.ifEmpty { listOf("ترک زیرنویس شناسایی نشد") }
+                lines += "تعداد ترک تصویر: ${videoTracks.size}"
+            } catch (e: Exception) {
+                lines += "خواندن کامل اطلاعات ناموفق بود: ${e.message ?: "خطای ناشناخته"}"
+            } finally {
+                try { extractor?.release() } catch (_: Exception) {}
+                try { retriever?.release() } catch (_: Exception) {}
+            }
+            runOnUiThread {
+                statusText.text = "اطلاعات ویدیو آماده شد"
+                AlertDialog.Builder(this)
+                    .setTitle("Video Info")
+                    .setMessage(lines.joinToString("\n"))
+                    .setPositiveButton("بستن", null)
+                    .show()
             }
         }
     }

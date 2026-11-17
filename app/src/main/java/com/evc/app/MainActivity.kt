@@ -3713,14 +3713,15 @@ class MainActivity : Activity() {
                 val count = countForThisLoad
                 val rangeStart = storyboardStartMs.coerceIn(0L, duration)
                 val rangeEnd = (if (storyboardEndMs > rangeStart) storyboardEndMs else duration).coerceIn(rangeStart, duration)
-                val preferred = initialVisibleIndex.coerceIn(0, (count - 1).coerceAtLeast(0))
-                val orderedIndices = (0 until count).sortedBy { candidate ->
-                    (candidate - preferred + count) % count.coerceAtLeast(1)
-                }
-                val workerCount = 2
+                // Split the complete storyboard range into five equal, contiguous time/index
+                // segments. Each decoder starts at its own segment's first frame so extraction
+                // begins at five evenly spaced points across the selected video range.
+                val workerCount = 5
                 val completedWorkers = java.util.concurrent.atomic.AtomicInteger(0)
                 repeat(workerCount) { workerIndex ->
-                    val assigned = orderedIndices.filterIndexed { order, _ -> order % workerCount == workerIndex }
+                    val segmentStart = (count.toLong() * workerIndex / workerCount).toInt()
+                    val segmentEnd = (count.toLong() * (workerIndex + 1) / workerCount).toInt()
+                    val assigned = (segmentStart until segmentEnd).toList()
                     storyboardFrameWorkers.execute {
                         var frameRetriever: MediaMetadataRetriever? = null
                         try {

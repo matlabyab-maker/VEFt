@@ -344,7 +344,7 @@ class MainActivity : Activity() {
                 } else false
             } else event.action == android.view.DragEvent.ACTION_DRAG_STARTED
         }
-        findViewById<Button>(R.id.outputChangesButton).setOnClickListener { exportCombinedChanges() }
+        findViewById<Button>(R.id.outputChangesButton).setOnClickListener { showSmartOutputOptionsDialog() }
         findViewById<Button>(R.id.globalDeleteButton).setOnClickListener { recordUndoState(); deleteSelectionOrShowOptions() }
         findViewById<Button>(R.id.undoButton).setOnClickListener { undoEditorStep() }
         findViewById<Button>(R.id.redoButton).setOnClickListener { redoEditorStep() }
@@ -447,7 +447,7 @@ class MainActivity : Activity() {
         manualNameField.visibility = View.GONE
         manualNameCheck.setOnCheckedChangeListener { _, checked ->
             manualOutputNameEnabled = checked
-            manualNameField.visibility = if (checked) View.VISIBLE else View.GONE
+            manualNameField.visibility = View.GONE
             if (checked) manualNameField.requestFocus()
         }
         val tagCheck = findViewById<CheckBox>(R.id.tagMetadataCheck)
@@ -456,7 +456,7 @@ class MainActivity : Activity() {
         tagInput.setText(tagPrefs.getString("current_tag", ""))
         tagInput.visibility = View.GONE
         tagCheck.setOnCheckedChangeListener { _, checked ->
-            tagInput.visibility = if (checked) View.VISIBLE else View.GONE
+            tagInput.visibility = View.GONE
             if (checked) tagInput.requestFocus()
             tagPrefs.edit().putBoolean("tag_enabled", checked).apply()
         }
@@ -468,8 +468,14 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
         tagCheck.isChecked = tagPrefs.getBoolean("tag_enabled", false)
+        // These settings are now presented only in the Smart Output dialog.
+        listOf(
+            R.id.outputTargetSizeCheck, R.id.outputTargetSizeLabel, R.id.targetSizeMb,
+            R.id.manualOutputNameCheck, R.id.tagMetadataCheck
+        ).forEach { findViewById<View>(it).visibility = View.GONE }
+        manualNameField.visibility = View.GONE
+        tagInput.visibility = View.GONE
         findViewById<Button>(R.id.videoInfoButton).setOnClickListener { showVideoInfoDialog() }
-        installPlayerResizeHandle()
 
         playerColorPreview = findViewById(R.id.playerColorPreview)
         statusText = findViewById(R.id.statusText)
@@ -4202,35 +4208,6 @@ class MainActivity : Activity() {
     }
 
 
-    private fun installPlayerResizeHandle() {
-        val handle = findViewById<View>(R.id.playerResizeHandle)
-        val playerRow = findViewById<View>(R.id.playerActionRow)
-        var startY = 0f
-        var startHeight = 0
-        handle.setOnTouchListener { _, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startY = event.rawY
-                    startHeight = playerRow.layoutParams.height
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val delta = (event.rawY - startY).toInt()
-                    val maxHeight = (resources.displayMetrics.heightPixels * 0.72f).toInt()
-                    val newHeight = (startHeight + delta).coerceIn(dp(170), maxHeight.coerceAtLeast(dp(240)))
-                    if (newHeight != playerRow.layoutParams.height) {
-                        playerRow.layoutParams = playerRow.layoutParams.apply { height = newHeight }
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    handle.performClick()
-                    true
-                }
-                else -> true
-            }
-        }
-    }
 
     private fun showVideoInfoDialog() {
         val uri = selectedUri
@@ -4357,9 +4334,9 @@ class MainActivity : Activity() {
         sourceVideoHeight = videoHeight
         val container = findViewById<FrameLayout>(R.id.playerContainer)
         val parent = container.parent as? View
-        val availableWidth = ((parent?.width ?: container.width) -
-            (parent?.paddingLeft ?: container.paddingLeft) -
-            (parent?.paddingRight ?: container.paddingRight)).coerceAtLeast(1)
+        // Base the viewport on the measured player column itself (not the full row
+        // including the left-side tool buttons).
+        val availableWidth = container.width.coerceAtLeast(1)
         // Use the full height of the player row instead of the old fixed 160dp cap.
         // This enlarges the real video viewport (not merely the surrounding black row)
         // while preserving the source aspect ratio and never stretching the picture.
@@ -4371,6 +4348,10 @@ class MainActivity : Activity() {
             viewportHeight = maxHeight
             viewportWidth = (viewportHeight * aspect).toInt().coerceAtLeast(1)
         }
+        // Reduce the final real video viewport by exactly 1dp in width and
+        // recalculate height so the source aspect ratio remains unchanged.
+        viewportWidth = (viewportWidth - dp(1)).coerceAtLeast(1)
+        viewportHeight = (viewportWidth / aspect).toInt().coerceAtLeast(1)
         val containerParams = container.layoutParams
         containerParams.width = viewportWidth
         containerParams.height = viewportHeight
@@ -4541,6 +4522,79 @@ class MainActivity : Activity() {
         }
 
         override fun performClick(): Boolean { super.performClick(); return true }
+    }
+
+    /** Shows export-only settings without occupying the main toolbar. */
+    private fun showSmartOutputOptionsDialog() {
+        val targetCheck = findViewById<CheckBox>(R.id.outputTargetSizeCheck)
+        val targetField = findViewById<EditText>(R.id.targetSizeMb)
+        val nameCheck = findViewById<CheckBox>(R.id.manualOutputNameCheck)
+        val nameField = findViewById<EditText>(R.id.manualOutputName)
+        val tagCheck = findViewById<CheckBox>(R.id.tagMetadataCheck)
+        val tagField = findViewById<EditText>(R.id.tagMetadataInput)
+
+        // Every Smart Output dialog starts with all optional choices unchecked.
+        targetCheck.isChecked = false
+        nameCheck.isChecked = false
+        tagCheck.isChecked = false
+
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(4))
+        }
+        fun makeCheck(label: String, checked: Boolean): CheckBox = CheckBox(this).apply {
+            text = label
+            isChecked = checked
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            buttonTintList = android.content.res.ColorStateList.valueOf(Color.rgb(255, 210, 31))
+            setPadding(dp(2), dp(6), dp(2), dp(6))
+        }
+        fun makeField(hint: String, value: String, inputType: Int): EditText = EditText(this).apply {
+            this.hint = hint
+            setText(value)
+            this.inputType = inputType
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.LTGRAY)
+            setSingleLine(true)
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            backgroundTintList = android.content.res.ColorStateList.valueOf(Color.rgb(255, 210, 31))
+        }
+
+        val targetOption = makeCheck("حجم انتخابی خروجی", false)
+        val targetValue = makeField("حجم هدف (MB)", targetField.text.toString(), android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL)
+        val nameOption = makeCheck("نام‌گذاری اختیاری", false)
+        val nameValue = makeField("نام فایل خروجی", nameField.text.toString(), android.text.InputType.TYPE_CLASS_TEXT)
+        val tagOption = makeCheck("افزودن Tag", false)
+        val tagValue = makeField("Tag ویدیو (اختیاری)", tagField.text.toString(), android.text.InputType.TYPE_CLASS_TEXT)
+        panel.addView(targetOption)
+        panel.addView(targetValue, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        panel.addView(nameOption)
+        panel.addView(nameValue, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        panel.addView(tagOption)
+        panel.addView(tagValue, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        targetValue.visibility = if (targetOption.isChecked) View.VISIBLE else View.GONE
+        nameValue.visibility = if (nameOption.isChecked) View.VISIBLE else View.GONE
+        tagValue.visibility = if (tagOption.isChecked) View.VISIBLE else View.GONE
+        targetOption.setOnCheckedChangeListener { _, checked -> targetValue.visibility = if (checked) View.VISIBLE else View.GONE }
+        nameOption.setOnCheckedChangeListener { _, checked -> nameValue.visibility = if (checked) View.VISIBLE else View.GONE }
+        tagOption.setOnCheckedChangeListener { _, checked -> tagValue.visibility = if (checked) View.VISIBLE else View.GONE }
+
+        AlertDialog.Builder(this)
+            .setTitle("تنظیمات خروجی هوشمند")
+            .setView(panel)
+            .setNegativeButton("انصراف", null)
+            .setPositiveButton("ادامه و ساخت خروجی") { _, _ ->
+                targetCheck.isChecked = targetOption.isChecked
+                targetField.setText(targetValue.text.toString())
+                nameCheck.isChecked = nameOption.isChecked
+                nameField.setText(nameValue.text.toString())
+                tagCheck.isChecked = tagOption.isChecked
+                tagField.setText(tagValue.text.toString())
+                exportCombinedChanges()
+            }
+            .show()
     }
 
     /** Unified final export combining configured crop, color, text, overlay video, audio and subtitle. */

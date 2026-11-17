@@ -3,7 +3,7 @@
 - **Repository / Gradle root:** `VEFt`
 - **Android app label:** `EVeditor`
 - **Application ID / namespace:** `com.evc.app` (preserved to retain the existing installed-app identity)
-- **Version:** `0.2.186` (`versionCode 386`)
+- **Version:** `0.2.190` (`versionCode 390`)
 - **Minimum Android:** API 24
 - **Target / Compile SDK:** 35
 - **Target ABI:** `armeabi-v7a` (32-bit ARM)

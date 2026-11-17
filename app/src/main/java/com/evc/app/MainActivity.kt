@@ -235,6 +235,9 @@ class MainActivity : Activity() {
         if (view is CheckBox) {
             fitProjectLabel(view, isCheckable = true)
         } else if (view is Button) {
+            // Prevent Android's automatic all-caps transformation from forcing short
+            // controls such as Cancel and Playback onto an extra clipped line.
+            view.setAllCaps(false)
             if (view.id != R.id.openButton && view.id != R.id.outputChangesButton) {
                 val lp = view.layoutParams
                 if (lp != null && lp.height != standardHeight) {
@@ -4333,14 +4336,15 @@ class MainActivity : Activity() {
         sourceVideoWidth = videoWidth
         sourceVideoHeight = videoHeight
         val container = findViewById<FrameLayout>(R.id.playerContainer)
-        val parent = container.parent as? View
-        // Base the viewport on the measured player column itself (not the full row
-        // including the left-side tool buttons).
-        val availableWidth = container.width.coerceAtLeast(1)
-        // Use the full height of the player row instead of the old fixed 160dp cap.
-        // This enlarges the real video viewport (not merely the surrounding black row)
-        // while preserving the source aspect ratio and never stretching the picture.
-        val maxHeight = (parent?.height ?: dp(160)).coerceAtLeast(1)
+        val row = findViewById<LinearLayout>(R.id.playerActionRow)
+        // Calculate from the row's stable measured width, not from the already-sized
+        // player container. This prevents repeated video-size callbacks from shrinking
+        // the preview by another pixel each time.
+        val toolsColumnWidth = (row.getChildAt(0)?.width ?: dp(144))
+        val availableWidth = (row.width - toolsColumnWidth).coerceAtLeast(1)
+        // Preserve the existing video viewport calculation and source aspect ratio.
+        // Only the surrounding black row is brought up to the viewport edge below.
+        val maxHeight = row.height.coerceAtLeast(1)
         val aspect = videoWidth.toFloat() / videoHeight.toFloat()
         var viewportWidth = availableWidth
         var viewportHeight = (viewportWidth / aspect).toInt().coerceAtLeast(1)
@@ -4360,6 +4364,13 @@ class MainActivity : Activity() {
             containerParams.gravity = Gravity.CENTER
         }
         container.layoutParams = containerParams
+
+        // Keep the actual player dimensions unchanged. Remove only the unused black
+        // band above/below it by matching the parent row to the already-computed
+        // viewport height; the left-side controls remain at their original sizes.
+        if (row.layoutParams.height != viewportHeight) {
+            row.layoutParams = row.layoutParams.apply { height = viewportHeight }
+        }
 
         // All player layers share one exact viewport so crop/placement controls
         // remain aligned and keep their original touch/visual behavior.

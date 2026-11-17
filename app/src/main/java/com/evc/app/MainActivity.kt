@@ -120,9 +120,9 @@ class MainActivity : Activity() {
         if (!suppressStoryboardAutoApply && selectedUri != null) applyStoryboardTimeRange()
     }
     private val worker = Executors.newSingleThreadExecutor()
-    // Decode storyboard thumbnails in a small pool; one MediaMetadataRetriever per worker.
-    // This avoids serial decoding becoming a long bottleneck for the first rows.
-    private val storyboardFrameWorkers = Executors.newFixedThreadPool(2)
+    // Decode storyboard thumbnails with five parallel workers; each worker owns its MediaMetadataRetriever.
+    // This increases frame extraction throughput while keeping decoder instances isolated.
+    private val storyboardFrameWorkers = Executors.newFixedThreadPool(5)
     // Keep timeline sampling independent so storyboard frames and the timeline do not share a decoder.
     private val timelineThumbnailWorker = Executors.newSingleThreadExecutor()
     private val selectedFrames = linkedSetOf<Int>()
@@ -1192,7 +1192,7 @@ class MainActivity : Activity() {
             try {
                 val ref = contentResolver.openInputStream(imageUri)?.use { BitmapFactoryCompat.decode(it) }
                     ?: throw IllegalStateException("خواندن عکس ناموفق بود")
-                val refSmall = Bitmap.createScaledBitmap(ref, 32, 32, true)
+                val refSmall = Bitmap.createScaledBitmap(ref, 35, 35, true)
                 ref.recycle()
                 retriever = MediaMetadataRetriever().apply { setDataSource(this@MainActivity, videoUri) }
                 val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
@@ -1202,7 +1202,7 @@ class MainActivity : Activity() {
                 while (t < duration) {
                     val frame = retriever.getFrameAtTime(t * 1000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                     if (frame != null) {
-                        val small = Bitmap.createScaledBitmap(frame, 32, 32, true)
+                        val small = Bitmap.createScaledBitmap(frame, 35, 35, true)
                         val score = imageSimilarity(refSmall, small)
                         if (score >= 0.72) matches.add(ImageMatch(t, score, Bitmap.createScaledBitmap(frame, 240, 135, true)))
                         small.recycle(); frame.recycle()
@@ -1235,8 +1235,11 @@ class MainActivity : Activity() {
     }
 
     private fun imageSimilarity(a: Bitmap, b: Bitmap): Double {
-        val pa = IntArray(32 * 32); val pb = IntArray(32 * 32)
-        a.getPixels(pa, 0, 32, 0, 0, 32, 32); b.getPixels(pb, 0, 32, 0, 0, 32, 32)
+        val sampleWidth = 35
+        val sampleHeight = 35
+        val pa = IntArray(sampleWidth * sampleHeight); val pb = IntArray(sampleWidth * sampleHeight)
+        a.getPixels(pa, 0, sampleWidth, 0, 0, sampleWidth, sampleHeight)
+        b.getPixels(pb, 0, sampleWidth, 0, 0, sampleWidth, sampleHeight)
         var diff = 0.0
         for (i in pa.indices) {
             val ca = pa[i]; val cb = pb[i]
